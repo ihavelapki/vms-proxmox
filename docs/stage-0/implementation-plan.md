@@ -1,7 +1,7 @@
-# Staged implementation plan
+# Historical staged implementation reference
 
-**Status:** Proposed; Stage 0 stops here pending owner approval.  
-**Delivery rule:** Every stage is independently reviewable, updates documentation in the same change, and ends with an evidence-based change report.
+**Status:** Non-binding Stage 0 reference, reconciled with later owner decisions.  
+**Task authority:** The project sequence and approval gates are decided in ChatGPT and supplied in each current Codex prompt. This document does not mandate the next task or authorize any operation.
 
 ## Classification
 
@@ -14,14 +14,17 @@
 
 - **APPROVED:** No Terraform resources are implemented in Stage 0.
 - **APPROVED:** Never run apply/destroy or destructive state commands without explicit approval.
-- **PROPOSED:** Do not begin a stage until its inputs and decisions are approved.
-- **PROPOSED:** Use a sandbox before production. A successful `validate` is not infrastructure evidence, and a successful plan is not a runtime test.
+- **APPROVED:** The first VM is a reusable development VM, not a disposable sandbox.
+- **PROPOSED:** Use a separate disposable test VM if destructive lifecycle experiments are necessary.
+- **PROPOSED:** A successful `validate` is not infrastructure evidence, and a successful plan is not a runtime test.
 - **PROPOSED:** Re-check version-matched provider documentation before writing or changing resource schema.
 - **PROPOSED:** Pause whenever a plan contains an unexplained delete, replacement, disk move/delete, node move, firewall exposure, credential value, or state migration.
 
+The numbered stages below are possible increments only. A future prompt may combine, reorder, narrow, or omit them.
+
 ## Stage 0 — Discovery, architecture, security, and decisions
 
-**State:** Completed as documentation; awaiting approval.
+**State:** Completed as historical documentation; eight later owner decisions are now recorded in [decisions.md](decisions.md).
 
 ### Delivered
 
@@ -40,9 +43,9 @@
 - Reviewed current official/provider primary documentation for provider compatibility, VM clone resources, cloud-init, guest agent, storage lifecycle, authentication/ACLs, TLS, and HTTP state locking.
 - Created documentation only; no Terraform command or live PVE operation was run.
 
-### Approval gate
+### Current use
 
-Resolve [decisions.md](decisions.md), especially D-01 through D-16. Record exact values and approver. Do not interpret the existence of these documents as approval.
+Use [current decisions](../decisions.md) as the concise source of truth. Resolve only the unknowns needed by the active prompt. Do not interpret this reference plan as approval.
 
 ## Stage 1 — Repository foundation and provider validation; no VMs
 
@@ -52,11 +55,11 @@ Create a reproducible, secret-free Terraform skeleton and prove provider compati
 
 ### Approved inputs required
 
-- PVE version/endpoint and trusted CA method.
+- Exact PVE 9 patch version, node, endpoint, and trusted CA method.
 - Supported Terraform version.
 - Reviewed `bpg/proxmox` version.
 - Local read-only authentication path.
-- State direction and environment naming.
+- GitLab project/state/backend details and validation method.
 
 ### Proposed files
 
@@ -102,16 +105,16 @@ If approved read-only credentials and connectivity are available, run only a har
 - No managed resources appear.
 - README explains safe init/validate workflow.
 
-## Stage 2 — One minimal sandbox VM
+## Stage 2 — One reusable development VM
 
 ### Goal
 
-Clone exactly one private VM from the approved template and prove the end-to-end contract.
+Clone exactly one private, reusable development VM from the externally prepared Ubuntu 24.04 template and prove the end-to-end contract without treating the VM as disposable.
 
 ### Approved inputs required
 
-- Sandbox node, template VM ID/node, full-clone decision.
-- Root/cloud-init datastore.
+- Standalone node, prepared template VM ID/node, full-clone decision.
+- Verified `local-lvm` ID/capabilities for root and cloud-init disks.
 - Bridge/VLAN and DHCP or static IPv4 configuration.
 - VM ID policy, CPU, memory, root size, name.
 - Guest user and approved SSH public key source.
@@ -143,7 +146,7 @@ terraform validate
 
 ### Authenticated validation
 
-Only with approved sandbox credentials/backend:
+Only with explicit authorization for the development target and validated GitLab backend:
 
 1. Initialize the approved backend.
 2. Run `terraform plan` and save/protect the artifact only if policy permits.
@@ -151,6 +154,8 @@ Only with approved sandbox credentials/backend:
 4. Review all stop/reboot/delete/protection arguments and disk actions.
 5. Obtain separate approval for apply.
 6. After apply, verify in PVE and guest: node, VM ID/name, full clone, CPU/RAM, disk/storage, NIC/bridge/VLAN, no unintended public path, cloud-init completion, unique machine/SSH identity, authorized keys, agent, correct IPv4, graceful shutdown/restart, and plan convergence.
+
+Do not test deletion, replacement, state surgery, or disk-loss behavior on the reusable development VM. If such testing is required, authorize and use a separate disposable VM.
 
 ### Exit criteria
 
@@ -216,8 +221,8 @@ Add a data disk only if the workload needs it, with explicit retention and guest
 
 - Provider/schema review for the pinned version.
 - Format/init/validate and exact disk-focused plan review.
-- In sandbox with approval: verify block-device identity, filesystem, ownership/permissions, `findmnt`, reboot persistence, resize procedure, VM replacement behavior, backup, and restore.
-- A destructive lifecycle test requires its own explicit approval and disposable data.
+- With explicit approval: verify block-device identity, filesystem, ownership/permissions, `findmnt`, reboot persistence, resize procedure, backup, and restore.
+- Test destructive replacement/deletion behavior only on a separately authorized disposable VM with disposable data.
 
 ### Documentation
 
@@ -251,7 +256,7 @@ Add only requirements proven by operations; this stage may be skipped.
 - Prove management access and recovery console before/after firewall changes.
 - Stage 5 evidence report for each selected increment.
 
-## Stage 6 — Remote state, CI, and operational hardening
+## Stage 6 — GitLab state, optional CI, and operational hardening
 
 This stage may be split: connect a required validated remote backend earlier, while full CI remains later.
 
@@ -261,12 +266,12 @@ Provide safe collaboration, locking, reviewed delivery, recovery, and controlled
 
 ### Approved inputs required
 
-- Backend service/owner, auth/TLS, lock API, environment key strategy, backup/restore.
+- GitLab project ID, state name, HTTP and lock endpoints, auth/TLS, access controls, backup/restore.
 - CI product, runner network, secret injection, protected branches/environments, review and apply roles.
 
 ### Proposed implementation
 
-- Partial backend configuration without credentials.
+- GitLab HTTP backend configuration without embedded credentials.
 - CI: format, backend-disabled init/validate, protected authenticated plan, manual protected apply, serialized per state.
 - Short artifact retention and restricted access.
 - Provider/template upgrade procedure and drift schedule.
@@ -281,9 +286,9 @@ Provide safe collaboration, locking, reviewed delivery, recovery, and controlled
 - Review plan artifact redaction/permissions/retention.
 - Stage 6 evidence report.
 
-## Documentation requirements by stage
+## Historical documentation suggestions
 
-Every stage report must contain:
+The current simplified skill does not require stage reports, long checklists, or implementation plans unless the active task asks for them. If a future prompt requests a stage report, useful evidence includes:
 
 1. Scope, approved decisions, and non-goals.
 2. Changed files and why each changed.
@@ -295,9 +300,9 @@ Every stage report must contain:
 8. Runtime evidence, when an apply was separately approved.
 9. Risks, limitations, rollback/recovery, and next-stage gate.
 
-Use `PASSED`, `FAILED`, or `NOT RUN`; never use “tested” without command/runtime evidence.
+Always report checks as `PASSED`, `FAILED`, or `NOT RUN`; never use “tested” without command/runtime evidence.
 
-## Plan-review checklist
+## Reference plan-review checklist
 
 For every authenticated plan:
 
@@ -338,4 +343,4 @@ For every authenticated plan:
 
 ### Remaining gate
 
-Owner discussion and explicit decisions in [decisions.md](decisions.md). No later stage is authorized by this plan alone.
+The owner later approved PVE 9.x, a standalone server, Ubuntu 24.04, external template preparation, `local-lvm`, administrative Web UI/SSH access, GitLab-managed HTTP state, and a reusable first development VM. Remaining unknowns are tracked in [current decisions](../decisions.md). No later task is authorized by this plan alone.

@@ -3,11 +3,13 @@
 **Status:** Proposed for review.  
 **Purpose:** Separate portable intent from Yandex-specific implementation and unknown operational behavior.
 
+The source behavior is evidence, not a target requirement. Owner-approved target context now includes PVE 9.x on one standalone server, Ubuntu Server 24.04 LTS, external preparation of a missing cloud-init template, existing `local-lvm`, GitLab-managed HTTP state pending validation, and a reusable first development VM.
+
 ## Classification
 
 - **OBSERVED** — confirmed in the inspected source or source analysis.
 - **PROPOSED** — recommended Proxmox treatment; not approved.
-- **UNKNOWN** — requires owner/platform input or a live sandbox check.
+- **UNKNOWN** — requires owner/platform input or an explicitly authorized environment check.
 - **APPROVED** — explicitly required by the Stage 0 brief.
 
 ## Migration rule
@@ -23,17 +25,17 @@
 | Child VM module | **OBSERVED:** Wraps three resources and hides active defaults | Remove initially | **PROPOSED:** Flat root module; add a child module only for proven reuse | Approve flat layout |
 | VM resource | **OBSERVED:** One `yandex_compute_instance` per map entry | Replace | **PROPOSED:** `proxmox_virtual_environment_vm` clone per key | Confirm PVE/provider/resource choice |
 | Compute sizing | **OBSERVED:** Explicit cores and memory; optional core fraction | Preserve/redesign | **PROPOSED:** Preserve explicit cores and memory in native units; remove core fraction | Select values and CPU type policy |
-| Platform | **OBSERVED:** Hidden `standard-v3` default | Remove/redesign | **PROPOSED:** Template architecture plus explicit, cluster-compatible Proxmox CPU type policy | Node CPU/migration requirements unknown |
+| Platform | **OBSERVED:** Hidden `standard-v3` default | Remove/redesign | **PROPOSED:** Template architecture plus an explicit CPU type suitable for the standalone server | Host CPU/model requirements unknown |
 | Preemptibility | **OBSERVED:** Hidden `preemptible = true` for every VM | Remove | PVE has no direct VM purchase model; do not invent interruption behavior | None unless scheduler/HA need appears |
 | Stop for update | **OBSERVED:** `allow_stopping_for_update = true` | Redesign | **PROPOSED:** Make provider reboot behavior explicit; plans that stop/reboot/replace require review | Maintenance policy unknown |
-| OS image family | **OBSERVED:** Latest/resolved Ubuntu 24.04 family feeds root-disk creation | Redesign | **PROPOSED:** Clone a promoted external template with recorded source and checksum | Template/OS/provenance unknown |
-| Root disk | **OBSERVED:** Separate 20 GB image-backed disk, retained on VM API deletion but Terraform-owned | Redesign | **PROPOSED:** Full-cloned root disk on explicit datastore; explicit size and destroy behavior | Retention/backup/storage unknown |
+| OS image family | **OBSERVED:** Latest/resolved Ubuntu 24.04 family feeds root-disk creation | Redesign | **APPROVED:** Ubuntu 24.04 target; prepare the missing cloud-init template externally. **PROPOSED:** Record source/checksum and clone it | Template ID/build/agent details unknown |
+| Root disk | **OBSERVED:** Separate 20 GB image-backed disk, retained on VM API deletion but Terraform-owned | Redesign | **APPROVED:** Use existing `local-lvm`. **PROPOSED:** Full-cloned root disk with explicit size/destroy behavior | Capacity, retention and backup unknown; reusable VM is not presumed disposable |
 | `/opt` disk | **OBSERVED:** Separate empty 30 GB disk; visible code does not format or mount it | Defer/redesign | **PROPOSED:** Add only after `/opt` purpose, filesystem, idempotent mount, retention, and recovery are approved | Original bootstrap missing |
 | Disk type | **OBSERVED:** Both disks use `network-hdd` | Remove | Proxmox datastore/type capabilities are different; select external datastore by ID | Datastore type/capability unknown |
 | Disk image drift | **OBSERVED:** Root `image_id` changes are ignored | Remove | **PROPOSED:** Pin/promote templates; review template changes instead of hiding drift | Template update process unknown |
 | Empty-disk drift rule | **OBSERVED:** `/opt` disk ignores `image_id` despite no image input | Remove | No target equivalent or value | None |
 | Disk deletion | **OBSERVED:** `auto_delete = false` does not protect Terraform-owned disks from destroy/key removal | Redesign | **PROPOSED:** Explicit provider deletion arguments, documented plan review, backups separate | Owner must define survival at three deletion boundaries |
-| Availability zone | **OBSERVED:** Derived from external subnet and shared by VM/disks | Remove/redesign | **PROPOSED:** Select explicit PVE node; respect storage locality/shared scope | Standalone vs cluster unknown |
+| Availability zone | **OBSERVED:** Derived from external subnet and shared by VM/disks | Remove/redesign | **APPROVED:** One standalone PVE server, no initial HA. **PROPOSED:** Select its explicit node | Exact node name unknown |
 | Existing subnet | **OBSERVED:** Consumed by name; not created | Preserve boundary | **PROPOSED:** Consume existing bridge/VLAN and guest network services | Bridge/VLAN/addressing unknown |
 | Private IPv4 | **OBSERVED:** Dynamic private address, no public NAT | Preserve intent | **PROPOSED:** Existing private/management network; DHCP or approved static cloud-init | DHCP, route and access path unknown |
 | IPv6 | **OBSERVED:** Disabled | Preserve initially | **PROPOSED:** IPv4-only until an IPv6 requirement is approved | Confirm platform standard |
@@ -49,11 +51,11 @@
 | QEMU Guest Agent | Not a Yandex concept in visible code | Add conditionally | **PROPOSED:** Require installed/running agent if enabling provider agent or IP outputs | Template contract unknown |
 | VM service identity | **OBSERVED:** No guest service account attached | Preserve absence | Do not add guest credentials or an identity mechanism without need | Application access unknown |
 | Tags/labels | **OBSERVED:** None | Add minimal | **PROPOSED:** Small PVE tag set such as `terraform` and environment/project if naming rules allow | Tag standard unknown |
-| Folder/cloud IDs | **OBSERVED:** Yandex-specific environment boundary | Remove | No Proxmox analogue; endpoint/cluster plus explicit node/storage/bridge replace it | None |
+| Folder/cloud IDs | **OBSERVED:** Yandex-specific environment boundary | Remove | No Proxmox analogue; endpoint/host plus explicit node/storage/bridge replace it | None |
 | Data-source lookups | **OBSERVED:** Folder/subnet/zone/image discovered by mutable names/family | Redesign | **PROPOSED:** Explicit node, template VM ID, datastore ID, bridge, and VLAN inputs | Exact values unknown |
 | Provider auth | **OBSERVED:** Local service-account JSON file referenced | Replace | **PROPOSED:** Dedicated API token from environment/secret injection | Token/ACL/rotation unknown |
-| Provider version | **OBSERVED:** Yandex provider unbounded; no lock file | Replace | **PROPOSED:** Reviewed bounded `bpg/proxmox` release plus committed lock | PVE version must be known first |
-| HTTP backend | **OBSERVED:** Empty partial configuration | Validate/reuse or replace | **PROPOSED:** Reuse only if HTTPS, authentication, locking, access control, backup and recovery pass review | Backend details unknown |
+| Provider version | **OBSERVED:** Yandex provider unbounded; no lock file | Replace | **PROPOSED:** Reviewed bounded `bpg/proxmox` release plus committed lock | Exact PVE patch and compatibility must be verified |
+| HTTP backend | **OBSERVED:** Empty partial configuration | Validate/configure | **APPROVED:** GitLab-managed Terraform state via HTTP. **PROPOSED:** Use only after HTTPS, authentication, locking, access-control and recovery validation | GitLab project/state/endpoints/credentials unknown |
 | State sensitivity | **OBSERVED:** Metadata could enter state | Preserve concern | Treat PVE token, cloud-init, plans, and state as sensitive; keep secrets out of resource arguments | State owner/controls unknown |
 | Human-formatted outputs | **OBSERVED:** Folder/subnet/DNS/image heredocs duplicate external data | Remove | Output only operator/automation values | Confirm output consumers |
 | VM output map | **OBSERVED:** IDs, names, FQDN, private IP | Preserve narrowly | **PROPOSED:** ID, name, node, MAC; IP only from agent or configured static value | Agent/addressing decision |
