@@ -1,44 +1,56 @@
 # Current decisions
 
-This page is the concise source of truth for owner-approved project decisions. Stage 0 documents preserve discovery and recommendations, but a recommendation is not approved unless recorded here or in a later explicit owner instruction.
+This record separates owner-approved context, choices implemented by the current
+task, and unresolved environment decisions. Implementation is not evidence that
+an environment-specific value was approved.
 
-## Approved
+## Owner-approved context
 
-| ID | Decision | Status | Approver/source |
+| ID | Decision | Status | Source |
 |---|---|---|---|
-| C-01 | Target Proxmox VE 9.x | **APPROVED** | Owner; documentation reconciliation request |
-| C-02 | Use one standalone Proxmox server; cluster and HA are not initial requirements | **APPROVED** | Owner; documentation reconciliation request |
-| C-03 | Guest OS is Ubuntu Server 24.04 LTS | **APPROVED** | Owner; documentation reconciliation request |
-| C-04 | No suitable cloud-init template exists; prepare it outside the Terraform VM stack | **APPROVED** | Owner; documentation reconciliation request |
-| C-05 | Use existing `local-lvm` for VM disks, after verifying its actual ID and capabilities | **APPROVED** | Owner; documentation reconciliation request |
-| C-06 | Proxmox administration is available through Web UI and SSH; this does not authorize Terraform provider SSH or host changes | **APPROVED** | Owner; documentation reconciliation request |
-| C-07 | Use GitLab-managed Terraform state through the HTTP backend, pending endpoint/authentication/TLS/locking/recovery validation | **APPROVED** | Owner; documentation reconciliation request |
-| C-08 | The first VM is a reusable development VM, not a disposable sandbox | **APPROVED** | Owner; documentation reconciliation request |
+| C-01 | Target Proxmox VE 9.x | **APPROVED** | Owner Stage 0 reconciliation |
+| C-02 | Use one standalone server; no initial cluster or HA | **APPROVED** | Owner Stage 0 reconciliation |
+| C-03 | Use Ubuntu Server 24.04 LTS guests | **APPROVED** | Owner Stage 0 reconciliation |
+| C-04 | Prepare the missing cloud-init template outside the VM stack | **APPROVED** | Owner Stage 0 reconciliation |
+| C-05 | Use existing `local-lvm` after verifying its real ID and capabilities | **APPROVED** | Owner Stage 0 reconciliation |
+| C-06 | Human Web UI and SSH administration does not authorize provider SSH or host changes | **APPROVED** | Owner Stage 0 reconciliation |
+| C-07 | Use GitLab-managed HTTP state after endpoint, auth, TLS, locking, and recovery validation | **APPROVED** | Owner Stage 0 reconciliation |
+| C-08 | Treat the first VM as reusable development state | **APPROVED** | Owner Stage 0 reconciliation |
 
-No approval date is recorded because the decisions were summarized from earlier ChatGPT discussion rather than tied to a reliably established original approval date.
+## Implemented design choices
 
-## Proposed, not approved
+The implementation task directed or authorized these choices. They can be
+revisited in code review; they are not promoted to owner-approved facts.
 
-- Flat root Terraform configuration with a small `vms` map and stable `for_each` keys.
-- Reviewed and pinned `bpg/proxmox` provider.
-- `proxmox_virtual_environment_vm` with a full clone.
-- One private VirtIO NIC on an existing bridge.
-- DHCP or static IPv4 after network discovery.
-- Native cloud-init, SSH public keys, and QEMU Guest Agent when installed and running.
-- Dedicated least-privilege API token and verified TLS.
-- Proxmox-allocated VM IDs with an explicit node and datastore.
-- DNS, additional `/opt` disk, CI, Terraform-managed firewall resources, and HA outside the initial scope.
-- A separate disposable test VM for destructive lifecycle experiments.
+| ID | Implemented choice | Rationale |
+|---|---|---|
+| I-01 | Flat root with `for_each` over a small `vms` map | Smallest readable multi-VM interface |
+| I-02 | Terraform `>= 1.5, < 2.0` and `bpg/proxmox ~> 0.116.0` | Matches provider requirements and bounds a pre-1.0 minor |
+| I-03 | `proxmox_virtual_environment_vm` full clone | Supports native initialization and agent settings; newer clone resource cannot manage both |
+| I-04 | API-token environment authentication, verified TLS 1.3, no provider SSH | Removes credentials from code and avoids unnecessary host access |
+| I-05 | PVE-allocated VM IDs; stable map keys supply VM names | Avoids inventing an ID range while retaining stable Terraform addresses |
+| I-06 | One VirtIO NIC, DHCP-only IPv4, optional shared VLAN | Minimal initial network surface |
+| I-07 | Native cloud-init username and public keys; no passwords, private keys, snippets, or provisioners | Minimal secret exposure and guest bootstrap scope |
+| I-08 | Guest Agent opt-in and disabled by default | Avoids inherited-agent waits until the template is proven compatible |
+| I-09 | Automatic update reboots off; PVE host autostart off | Protects a reusable development VM from surprise downtime |
+| I-10 | No lifecycle ignore or prevent-destroy rule | Keeps drift and destructive plans visible; relies on review and backups |
+| I-11 | Partial HTTP backend configured externally | Keeps GitLab endpoints and credentials out of source |
 
-## Unknowns blocking VM implementation
+## Required decisions before an authenticated plan
 
-- Exact PVE patch version, node name, API endpoint, and certificate chain.
-- Compatible Terraform and provider versions.
-- Template ID, source/checksum, build process, and guest-agent state.
-- Verified `local-lvm` capacity and relevant capabilities.
-- Bridge/VLAN/addressing/DNS details and the guest SSH access route.
-- VM sizing, CPU model, root size, name, guest username, and SSH public-key source.
-- Replacement, deletion, protection, backup, and recovery policy.
-- GitLab project/state/backend details, credentials, access controls, locking, and restore process.
+| ID | Unknown or approval needed | Evidence required |
+|---|---|---|
+| D-01 | Exact PVE patch version, node name, API endpoint, and CA chain | PVE inventory and verified TLS connection |
+| D-02 | Template VM ID and completed template contract, including disabled `ciupgrade` | Recorded image origin/checksum, config, test clone, and cloud-init result |
+| D-03 | Actual datastore ID and clone/disk/cloud-init support | PVE storage inventory and capacity check |
+| D-04 | Bridge, DHCP scope, optional VLAN, routing, and SSH path | Network-owner confirmation and disposable connectivity test |
+| D-05 | First VM name, CPU, RAM, disk size, guest username, and approved public keys | Owner-approved local `terraform.tfvars` values |
+| D-06 | Whether QEMU Guest Agent is installed and enabled in the template | Successful guest-agent status and IP-reporting test |
+| D-07 | Dedicated API principal, token separation, and least-privilege ACLs | PVE 9 permission test for read, clone, configure, start, stop, and delete paths |
+| D-08 | GitLab project, state name, endpoint, credential type, access roles, locking, and recovery | Isolated backend test and documented restore exercise |
+| D-09 | Backup/restore, deletion, replacement, and optional VM-protection policy | Owner approval and recoverability evidence for reusable VM data |
+| D-10 | Acceptability of cloned `scsi0` normalization shown by the first plan | Template config comparison and reviewed authenticated plan |
 
-See [current architecture](architecture.md) and the detailed [Stage 0 decision history](stage-0/decisions.md).
+An authenticated plan can itself supply evidence for D-10, but it must not be
+applied until all destructive effects and the backup/recovery posture are
+approved. Static validation does not resolve any of these environment decisions.

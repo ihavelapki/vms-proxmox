@@ -1,0 +1,32 @@
+# Replace every placeholder after verifying the real Proxmox environment.
+node_name       = "<pve-node-name>"
+template_vm_id  = 9000 # Placeholder only; replace with the verified template ID.
+datastore_id    = "local-lvm"
+network_bridge  = "<existing-bridge>"
+
+guest_username = "ubuntu"
+ssh_public_keys = [
+  "ssh-ed25519 <public-key-material> <comment>",
+]
+
+# Leave false unless qemu-guest-agent is installed, enabled, and tested in the
+# external template. When true, the provider waits for a non-loopback IPv4.
+qemu_guest_agent_enabled = false
+
+# Set a verified VLAN tag only when the bridge is VLAN-aware.
+# network_vlan_id = 123
+
+vms = {
+  # Example reusable development VM; replace the name and sizing.
+  "dev-01" = {
+    cores     = 2
+    memory_mb = 4096
+    disk_gb   = 32
+  }
+
+  # "dev-02" = {
+  #   cores     = 2
+  #   memory_mb = 4096
+  #   disk_gb   = 32
+  # }
+}
